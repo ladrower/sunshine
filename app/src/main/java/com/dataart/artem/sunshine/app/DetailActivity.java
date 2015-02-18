@@ -1,23 +1,31 @@
 package com.dataart.artem.sunshine.app;
 
 import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.ShareActionProvider;
 
 
-public class MainActivity extends ActionBarActivity {
+public class DetailActivity extends ActionBarActivity {
+
+    private ShareActionProvider shareActionProvider;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+
+        setContentView(R.layout.activity_detail);
         if (savedInstanceState == null) {
+            ForecastDetailFragment fragment = new ForecastDetailFragment();
+            Intent intent = getIntent();
+            Bundle bundle = new Bundle();
+            bundle.putString(Intent.EXTRA_TEXT, intent.getStringExtra(Intent.EXTRA_TEXT));
+            fragment.setArguments(bundle);
+
             getSupportFragmentManager().beginTransaction()
-                    .add(R.id.container, new ForecastFragment())
+                    .add(R.id.container, fragment)
                     .commit();
         }
     }
@@ -26,7 +34,8 @@ public class MainActivity extends ActionBarActivity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.main, menu);
+        getMenuInflater().inflate(R.menu.menu_detail, menu);
+
         return true;
     }
 
@@ -38,27 +47,11 @@ public class MainActivity extends ActionBarActivity {
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        switch (id) {
-            case R.id.action_settings:
-                startActivity(new Intent(this, SettingsActivity.class));
-                return true;
-            case R.id.action_view_location:
-                showLocationOnMap();
-                return true;
+        if (id == R.id.action_settings) {
+            startActivity(new Intent(this, SettingsActivity.class));
+            return true;
         }
 
         return super.onOptionsItemSelected(item);
     }
-
-    private void showLocationOnMap () {
-        String location = PreferenceManager.getDefaultSharedPreferences(this)
-                .getString(getString(R.string.pref_location_key), getString(R.string.pref_location_default));
-        Uri geoLocation = Uri.parse("geo:0,0?q=" + location);
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.setData(geoLocation);
-        if (intent.resolveActivity(getPackageManager()) != null) {
-            startActivity(intent);
-        }
-    }
-
 }

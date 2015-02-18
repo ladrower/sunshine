@@ -1,8 +1,11 @@
 package com.dataart.artem.sunshine.app;
 
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -11,6 +14,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
@@ -59,8 +63,41 @@ public class ForecastFragment extends Fragment {
 
         ListView listView = (ListView)rootView.findViewById(R.id.listview_forecast);
         listView.setAdapter(arrayAdapter);
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+
+                String item = arrayAdapter.getItem(position);
+                Intent details = new Intent(getActivity(), DetailActivity.class);
+                details.putExtra(Intent.EXTRA_TEXT, item);
+                startActivity(details);
+
+            }
+        });
 
         return rootView;
+    }
+
+    @Override
+    public void onStart () {
+        super.onStart();
+        updateWeather();
+    }
+
+    private String getLocation () {
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        return preferences.getString(getString(R.string.pref_location_key), getString(R.string.pref_location_default));
+    }
+
+    private String getUnits () {
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        return preferences.getString(getString(R.string.pref_temperature_units_key), getString(R.string.pref_temperature_unit_metric));
+    }
+
+    private void updateWeather () {
+        FetchWeatherTask fetchWeatherTask = new FetchWeatherTask();
+        fetchWeatherTask.execute(getLocation(), getUnits());
     }
 
 
@@ -75,8 +112,7 @@ public class ForecastFragment extends Fragment {
         // Handle item selection
         switch (item.getItemId()) {
             case R.id.action_refresh:
-                FetchWeatherTask fetchWeatherTask = new FetchWeatherTask();
-                fetchWeatherTask.execute("Kiev");
+                updateWeather();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -101,10 +137,15 @@ public class ForecastFragment extends Fragment {
         /**
          * Prepare the weather high/lows for presentation.
          */
-        private String formatHighLows(double high, double low) {
+        private String formatHighLows(double high, double low, String tempUnits) {
             // For presentation, assume the user doesn't care about tenths of a degree.
             long roundedHigh = Math.round(high);
             long roundedLow = Math.round(low);
+
+            if (tempUnits.equals(getString(R.string.pref_temperature_unit_imperial))) {
+                roundedHigh = roundedHigh * 9/5 + 32;
+                roundedLow = roundedLow * 9/5 + 32;
+            }
 
             String highLowStr = roundedHigh + "/" + roundedLow;
             return highLowStr;
@@ -117,7 +158,7 @@ public class ForecastFragment extends Fragment {
          * Fortunately parsing is easy:  constructor takes the JSON string and converts it
          * into an Object hierarchy for us.
          */
-        private String[] getWeatherDataFromJson(String forecastJsonStr, int numDays)
+        private String[] getWeatherDataFromJson(String forecastJsonStr, int numDays, String tempUnits)
                 throws JSONException {
 
             // These are the names of the JSON objects that need to be extracted.
@@ -158,7 +199,7 @@ public class ForecastFragment extends Fragment {
                 double high = temperatureObject.getDouble(OWM_MAX);
                 double low = temperatureObject.getDouble(OWM_MIN);
 
-                highAndLow = formatHighLows(high, low);
+                highAndLow = formatHighLows(high, low, tempUnits);
                 resultStrs[i] = day + " , " + description + " , " + highAndLow;
             }
 
@@ -248,7 +289,7 @@ public class ForecastFragment extends Fragment {
             }
 
             try {
-                forecastStrings = getWeatherDataFromJson(forecastJsonStr, days);
+                forecastStrings = getWeatherDataFromJson(forecastJsonStr, days, params[1]);
             } catch (JSONException e) {
                 Log.e(LOG_TAG, e.getMessage(), e);
             }
